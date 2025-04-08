@@ -1,4 +1,4 @@
-SELECT TOP 1 * FROM corona_data;
+SELECT * FROM corona_data;
 -- SELECT CONVERT(Date, GETDATE()) from corona_data;
 -- Data Cleaning
 -- Q1 Check for NULL values and Update nulls with zeros for all columns
@@ -65,6 +65,17 @@ SELECT FORMAT(Date, 'yyyy-MM') AS MONTHS,
 	GROUP BY FORMAT(Date, 'yyyy-MM')
 	ORDER BY MONTHS;
 
+-- Q7 The total number of cases confirmed, deaths, recovered per Year
+SELECT 
+    FORMAT(Date, 'yyyy') AS Year,
+    SUM(CAST(Confirmed AS FLOAT)) AS total_confirmed,
+    SUM(CAST(Deaths AS FLOAT)) AS total_deaths,
+    SUM(CAST(Recovered AS FLOAT)) AS total_recovered
+FROM corona_data
+GROUP BY FORMAT(Date, 'yyyy')
+ORDER BY Year;
+
+
 -- Q8 Find top 5 countries having thw highest number of confirmed case
 SELECT Country_Region,
 	SUM(CAST(Confirmed AS FLOAT)) total_confirmed
@@ -85,4 +96,36 @@ SELECT Country_Region,
 	FROM TotalConfirmedRank 
 	WHERE ranking =1;
 
--- Q9 
+-- Q9 Case Fatality Rate Calculate the CFR for each country 
+SELECT DISTINCT Country_Region,
+	ROUND(
+        (SUM(CAST(Deaths AS FLOAT)) / SUM(CAST(Confirmed AS FLOAT))) * 100, 
+        2
+    ) AS CFR_RATE
+	FROM corona_data
+	GROUP BY Country_Region
+	ORDER BY CFR_RATE DESC;
+
+-- 10.	Growth rate: Calculate the daily or monthly growth rates of confirmed cases to identify periods of rapid spread
+WITH monthlycases AS (
+	SELECT 
+		FORMAT(Date, 'yyyy-MM') AS Months,
+		SUM(CAST(Confirmed AS FLOAT)) AS Total_confirmed
+	FROM corona_data
+	GROUP BY FORMAT(Date, 'yyyy-MM')
+	), 
+	GrowthRate AS (
+	SELECT 
+		Months,
+		Total_confirmed,
+		LAG(Total_confirmed) OVER (ORDER BY Months) AS previous_month
+	FROM monthlycases
+	)
+	SELECT 
+		Months,
+		Total_confirmed,
+		previous_month,
+		ROUND(((Total_confirmed - previous_month)/previous_month) * 100, 2) AS Growth_rate_Percentage
+	FROM GrowthRate
+	WHERE previous_month IS NOT NULL
+	ORDER BY Months;
